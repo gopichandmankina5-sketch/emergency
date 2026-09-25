@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vibration/vibration.dart';
+import 'tts_service.dart';
 
 const String kEmergencyChannelId = 'emergency_corridor_loud_v3';
 const String kEmergencyChannelV2Id = 'emergency_corridor_loud_v2';
@@ -128,6 +129,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     }
 
     debugPrint('[EmergencyNotification] ACCEPTED - active emergency alert');
+    TtsService().speakAction(action);
 
     if (message.notification != null) {
       debugPrint('[EmergencyNotification] Android native FCM displayed notification (skipping duplicate local notification)');
@@ -362,6 +364,7 @@ class FcmService {
 
           if (shouldNotify(evId, vId, action)) {
             triggerHapticAlert(action);
+            TtsService().speakAction(action);
             await showLocalNotification(
               title: title,
               body: body,
