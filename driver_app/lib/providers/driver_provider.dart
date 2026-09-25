@@ -91,6 +91,7 @@ class DriverProvider extends ChangeNotifier {
     final success = await _apiService.registerFcmToken(_vehicleId, token);
     if (success) {
       _lastSentTokenKey = key;
+      debugPrint('[FCM] Token synced for $_vehicleId');
       debugPrint('[DriverProvider] FCM token synced to backend successfully for $_vehicleId');
     } else {
       debugPrint('[DriverProvider] Failed to sync FCM token to backend for $_vehicleId (retaining token for retry)');

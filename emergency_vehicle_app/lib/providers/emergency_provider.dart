@@ -29,6 +29,20 @@ class EmergencyProvider extends ChangeNotifier {
   int _consecutiveFailures = 0;
   Timer? _telemetryTimer;
 
+  EmergencyProvider() {
+    refreshNearbyVehicles();
+  }
+
+  Future<void> refreshNearbyVehicles() async {
+    try {
+      final nearby = await _apiService.fetchNearbyVehicles();
+      _nearbyVehicles = nearby;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[EmergencyProvider] refreshNearbyVehicles error: $e');
+    }
+  }
+
   // Getters
   bool get isEmergencyActive => _isEmergencyActive;
   String get emergencyVehicleId => _emergencyVehicleId;
@@ -41,6 +55,11 @@ class EmergencyProvider extends ChangeNotifier {
   double get destLon => _destLon;
   CorridorResult? get activeCorridor => _activeCorridor;
   List<Vehicle> get nearbyVehicles => _nearbyVehicles;
+  int get nearbyCount {
+    return _nearbyVehicles
+        .where((v) => v.vehicleId.trim().toUpperCase() != _emergencyVehicleId.trim().toUpperCase())
+        .length;
+  }
   bool get isLiveGpsMode => _isLiveGpsMode;
   ConnectionStateEnum get connectionState => _connectionState;
 
@@ -134,6 +153,8 @@ class EmergencyProvider extends ChangeNotifier {
       _recordFailure();
     }
 
+    await refreshNearbyVehicles();
+
     _telemetryTimer?.cancel();
     _telemetryTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
       double updateLat = curLat;
@@ -178,9 +199,7 @@ class EmergencyProvider extends ChangeNotifier {
         _recordFailure();
       }
 
-      final nearby = await _apiService.fetchNearbyVehicles();
-      _nearbyVehicles = nearby;
-      notifyListeners();
+      await refreshNearbyVehicles();
     });
   }
 

@@ -13,18 +13,17 @@ class ApiService {
 
   ApiService._internal();
 
-  // Backend running on the laptop.
-  // Phone and laptop must be connected to the same Wi-Fi/mobile hotspot.
+  // Production Render Backend URL
   String _baseUrl = const String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.137.1:8000/api',
+    defaultValue: 'https://emergency-nzyw.onrender.com/api',
   );
 
   void setBaseUrl(String url) {
     String clean = url.trim();
 
     if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
-      clean = 'http://$clean';
+      clean = 'https://$clean';
     }
 
     clean = clean.replaceAll(RegExp(r'/$'), '');

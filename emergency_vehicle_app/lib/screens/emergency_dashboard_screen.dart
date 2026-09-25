@@ -246,7 +246,7 @@ class _EmergencyDashboardScreenState extends State<EmergencyDashboardScreen> {
                     children: [
                       VehicleStatCard(
                         title: 'Nearby',
-                        value: '${provider.activeCorridor?.totalNearbyVehicles ?? provider.nearbyVehicles.length}',
+                        value: '${provider.nearbyCount}',
                         icon: Icons.directions_car,
                         color: const Color(0xFF38BDF8),
                       ),

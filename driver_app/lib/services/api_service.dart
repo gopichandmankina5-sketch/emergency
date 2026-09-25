@@ -21,13 +21,13 @@ class ApiService {
 
   String _baseUrl = const String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.137.1:8000/api',
+    defaultValue: 'https://emergency-nzyw.onrender.com/api',
   );
 
   void setBaseUrl(String url) {
     String clean = url.trim();
     if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
-      clean = 'http://$clean';
+      clean = 'https://$clean';
     }
     _baseUrl = clean.endsWith('/api') ? clean : '${clean.replaceAll(RegExp(r'/$'), '')}/api';
     debugPrint('[ApiService] Base URL updated to: $_baseUrl');

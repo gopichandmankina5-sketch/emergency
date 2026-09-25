@@ -1,22 +1,116 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vibration/vibration.dart';
 
-const String kEmergencyChannelId = 'emergency_corridor_loud_v2';
+const String kEmergencyChannelId = 'emergency_corridor_loud_v3';
+const String kEmergencyChannelV2Id = 'emergency_corridor_loud_v2';
 const String kEmergencyChannelName = '🚨 Emergency Corridor Alerts';
 const String kEmergencyChannelDesc =
     'Critical high-priority loud audible notifications for emergency vehicle maneuvers';
+
+int _bgNotificationCounter = 0;
+int _fgNotificationCounter = 0;
+
+Future<bool> checkActiveEmergencyState(String vehicleId) async {
+  debugPrint('[EmergencyNotification] Checking active emergency state');
+  try {
+    const String baseUrl = String.fromEnvironment(
+      'API_BASE_URL',
+      defaultValue: 'https://emergency-nzyw.onrender.com/api',
+    );
+    final url = Uri.parse('$baseUrl/alerts/$vehicleId');
+    final response = await http.get(url).timeout(const Duration(seconds: 5));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is Map<String, dynamic> && data['hasAlert'] == true) {
+        final alerts = data['alerts'];
+        final latestAlert = data['latestAlert'];
+        if ((alerts is List && alerts.isNotEmpty) ||
+            (latestAlert is Map<String, dynamic> && latestAlert['active'] != false)) {
+          debugPrint('[EmergencyNotification] Active emergency = true');
+          return true;
+        }
+      }
+    }
+    debugPrint('[EmergencyNotification] Active emergency = false');
+    return false;
+  } catch (e) {
+    debugPrint('[EmergencyNotification] Error checking active emergency state: $e');
+    debugPrint('[EmergencyNotification] Active emergency = true (fallback)');
+    return true;
+  }
+}
+
+Future<void> _ensureNotificationChannelsCreated(
+    FlutterLocalNotificationsPlugin localNotifications) async {
+  final androidPlugin = localNotifications
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+  if (androidPlugin != null) {
+    for (final channelId in [kEmergencyChannelId, kEmergencyChannelV2Id]) {
+      debugPrint('[EmergencyNotification] Creating channel: $channelId');
+      final AndroidNotificationChannel channel = AndroidNotificationChannel(
+        channelId,
+        kEmergencyChannelName,
+        description: kEmergencyChannelDesc,
+        importance: Importance.max,
+        playSound: true,
+        sound: const RawResourceAndroidNotificationSound('emergency_alert'),
+        enableVibration: true,
+        vibrationPattern: Int64List.fromList([0, 500, 200, 500, 200, 500]),
+        showBadge: true,
+      );
+      await androidPlugin.createNotificationChannel(channel);
+    }
+    debugPrint('[EmergencyNotification] Notification channels created successfully');
+  }
+}
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
     await Firebase.initializeApp();
     debugPrint('[FCM] Background message received');
-    debugPrint('[EmergencyNotification] FCM alert received');
+    debugPrint('[EmergencyNotification] App state = background');
+    debugPrint('[EmergencyNotification] FCM received');
+
+    String action = message.data['action'] ?? '';
+    String evId = message.data['emergencyVehicleId'] ?? 'AMB001';
+    String vId = message.data['vehicleId'] ?? 'V102';
+    String messageId = message.messageId ?? '${DateTime.now().millisecondsSinceEpoch}';
+    String timestamp = message.data['timestamp'] ?? DateTime.now().toIso8601String();
+    String msgType = message.data['type'] ?? 'EMERGENCY_CORRIDOR_ALERT';
+    String title = message.notification?.title ??
+        message.data['title'] ??
+        '🚨 EMERGENCY VEHICLE APPROACHING';
+    String body = message.notification?.body ??
+        message.data['body'] ??
+        message.data['actionText'] ??
+        'Please clear the emergency corridor';
+
+    debugPrint('[EmergencyNotification] messageId = $messageId');
+    debugPrint('[EmergencyNotification] timestamp = $timestamp');
+    debugPrint('[EmergencyNotification] emergencyVehicleId = $evId');
+    debugPrint('[EmergencyNotification] vehicleId = $vId');
+    debugPrint('[EmergencyNotification] action = $action');
+    debugPrint('[EmergencyNotification] type = $msgType');
+
+    if (action.isEmpty || action == 'NO_ALERT') {
+      debugPrint('[EmergencyNotification] Action is empty or NO_ALERT - suppressing notification');
+      return;
+    }
+
+    final bool isActive = await checkActiveEmergencyState(vId);
+    if (!isActive) {
+      debugPrint('[EmergencyNotification] Suppressing notification: Active emergency = false');
+      return;
+    }
 
     final FlutterLocalNotificationsPlugin localNotifications =
         FlutterLocalNotificationsPlugin();
@@ -25,41 +119,15 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     await localNotifications
         .initialize(const InitializationSettings(android: androidSettings));
 
-    final AndroidNotificationChannel channel = AndroidNotificationChannel(
-      kEmergencyChannelId,
-      kEmergencyChannelName,
-      description: kEmergencyChannelDesc,
-      importance: Importance.max,
-      playSound: true,
-      sound: const RawResourceAndroidNotificationSound('emergency_alert'),
-      enableVibration: true,
-      vibrationPattern: Int64List.fromList([0, 500, 200, 500, 200, 500]),
-      showBadge: true,
-    );
+    await _ensureNotificationChannelsCreated(localNotifications);
 
-    await localNotifications
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+    final int notificationId =
+        ((DateTime.now().millisecondsSinceEpoch + (_bgNotificationCounter++)) & 0x7FFFFFFF);
 
-    String title = message.notification?.title ??
-        message.data['title'] ??
-        '🚨 EMERGENCY VEHICLE APPROACHING';
-    String body = message.notification?.body ??
-        message.data['body'] ??
-        message.data['actionText'] ??
-        'Please clear the emergency corridor';
-    String action = message.data['action'] ?? '';
-
-    if (action.isEmpty || action == 'NO_ALERT') {
-      await localNotifications.cancelAll();
-      debugPrint('[EmergencyNotification] NO_ALERT/empty action received in background, cancelled notifications');
-      return;
-    }
-
-    debugPrint('[EmergencyNotification] Playing emergency sound');
-    debugPrint('[EmergencyNotification] Showing high-priority notification');
-    debugPrint('[FCM] Emergency notification displayed');
+    debugPrint('[EmergencyNotification] Creating local emergency notification');
+    debugPrint('[EmergencyNotification] notificationId = $notificationId');
+    debugPrint('[EmergencyNotification] channel = emergency_corridor_loud_v3');
+    debugPrint('[EmergencyNotification] sound = emergency_alert');
 
     final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       kEmergencyChannelId,
@@ -78,13 +146,15 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     );
 
     await localNotifications.show(
-      1001,
+      notificationId,
       title,
       body,
       NotificationDetails(android: androidDetails),
     );
-  } catch (e) {
-    debugPrint('[FcmService] Background handler exception: $e');
+
+    debugPrint('[EmergencyNotification] local notification displayed');
+  } catch (e, stack) {
+    debugPrint('[EmergencyNotification] ERROR:\n$e\n$stack');
   }
 }
 
@@ -187,31 +257,24 @@ class FcmService {
 
       await _localNotifications.initialize(initSettings);
 
-      final AndroidNotificationChannel channel = AndroidNotificationChannel(
-        kEmergencyChannelId,
-        kEmergencyChannelName,
-        description: kEmergencyChannelDesc,
-        importance: Importance.max,
-        playSound: true,
-        sound: const RawResourceAndroidNotificationSound('emergency_alert'),
-        enableVibration: true,
-        vibrationPattern: Int64List.fromList([0, 500, 200, 500, 200, 500]),
-        showBadge: true,
-      );
+      await _ensureNotificationChannelsCreated(_localNotifications);
 
       final androidPlugin = _localNotifications
           .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
 
       if (androidPlugin != null) {
-        await androidPlugin.createNotificationChannel(channel);
         bool? granted = await androidPlugin.requestNotificationsPermission();
         debugPrint('[FcmService] Android POST_NOTIFICATIONS permission granted: $granted');
+        if (granted == false) {
+          debugPrint('[FcmService] WARNING: Android POST_NOTIFICATIONS permission NOT granted!');
+        }
       }
 
       if (_messaging != null) {
         _fcmToken = await _messaging!.getToken();
         if (_fcmToken != null && _fcmToken!.isNotEmpty) {
+          debugPrint('[FCM] Token obtained');
           debugPrint('[FcmService] Native FCM Token obtained');
           await _saveTokenLocally(_fcmToken!);
           _onTokenChanged?.call(_fcmToken!);
@@ -223,8 +286,10 @@ class FcmService {
           _onTokenChanged?.call(newToken);
         });
 
-        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-          debugPrint('[EmergencyNotification] FCM alert received');
+        FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+          debugPrint('[EmergencyNotification] App state = foreground');
+          debugPrint('[EmergencyNotification] FCM received');
+
           String title = message.notification?.title ??
               message.data['title'] ??
               '🚨 EMERGENCY VEHICLE APPROACHING';
@@ -235,11 +300,34 @@ class FcmService {
           String action = message.data['action'] ?? '';
           String evId = message.data['emergencyVehicleId'] ?? 'AMB001';
           String vId = message.data['vehicleId'] ?? 'V102';
+          String messageId = message.messageId ?? '${DateTime.now().millisecondsSinceEpoch}';
+          String timestamp = message.data['timestamp'] ?? DateTime.now().toIso8601String();
+          String msgType = message.data['type'] ?? 'EMERGENCY_CORRIDOR_ALERT';
 
-          if (action.isNotEmpty && action != 'NO_ALERT' && shouldNotify(evId, vId, action)) {
-            showLocalNotification(
+          debugPrint('[EmergencyNotification] messageId = $messageId');
+          debugPrint('[EmergencyNotification] timestamp = $timestamp');
+          debugPrint('[EmergencyNotification] emergencyVehicleId = $evId');
+          debugPrint('[EmergencyNotification] vehicleId = $vId');
+          debugPrint('[EmergencyNotification] action = $action');
+          debugPrint('[EmergencyNotification] type = $msgType');
+
+          if (action.isEmpty || action == 'NO_ALERT') {
+            debugPrint('[EmergencyNotification] Action is empty or NO_ALERT - suppressing notification');
+            return;
+          }
+
+          final bool isActive = await checkActiveEmergencyState(vId);
+          if (!isActive) {
+            debugPrint('[EmergencyNotification] Suppressing notification: Active emergency = false');
+            return;
+          }
+
+          if (shouldNotify(evId, vId, action)) {
+            triggerHapticAlert(action);
+            await showLocalNotification(
               title: title,
               body: body,
+              messageId: messageId,
             );
           }
         });
@@ -252,11 +340,17 @@ class FcmService {
   Future<void> showLocalNotification({
     required String title,
     required String body,
+    String? messageId,
+    int? notificationId,
   }) async {
     try {
-      debugPrint('[EmergencyNotification] Playing emergency sound');
-      debugPrint('[EmergencyNotification] Showing high-priority notification');
-      debugPrint('[FCM] Emergency notification displayed');
+      final int finalId = notificationId ??
+          ((DateTime.now().millisecondsSinceEpoch + (_fgNotificationCounter++)) & 0x7FFFFFFF);
+
+      debugPrint('[EmergencyNotification] Creating local emergency notification');
+      debugPrint('[EmergencyNotification] notificationId = $finalId');
+      debugPrint('[EmergencyNotification] channel = emergency_corridor_loud_v3');
+      debugPrint('[EmergencyNotification] sound = emergency_alert');
 
       final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
         kEmergencyChannelId,
@@ -278,13 +372,15 @@ class FcmService {
           NotificationDetails(android: androidDetails);
 
       await _localNotifications.show(
-        1001,
+        finalId,
         title,
         body,
         details,
       );
-    } catch (e) {
-      debugPrint('[FcmService] Local notification error: $e');
+
+      debugPrint('[EmergencyNotification] local notification displayed');
+    } catch (e, stack) {
+      debugPrint('[EmergencyNotification] ERROR:\n$e\n$stack');
     }
   }
 
