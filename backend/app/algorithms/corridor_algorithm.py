@@ -142,7 +142,8 @@ class CorridorAlgorithmEngine:
         ev_heading: float,
         dest_lat: float,
         dest_lon: float,
-        nearby_vehicles: List[Dict[str, Any]]
+        nearby_vehicles: List[Dict[str, Any]],
+        max_radius_m: float = 2000.0
     ) -> Dict[str, Any]:
         """
         STEPS 2 - 11: Dynamic Corridor Optimization Engine
@@ -162,6 +163,7 @@ class CorridorAlgorithmEngine:
         candidate_alerts: List[AlertResponse] = []
         analytics_rows: List[Dict[str, Any]] = []
         
+        nearby_count = 0
         obstructing_count = 0
         instructed_count = 0
         
@@ -177,6 +179,10 @@ class CorridorAlgorithmEngine:
             loc_enabled = v.get("locationEnabled", True)
             
             dist_m = self.haversine_distance(ev_lat, ev_lon, v_lat, v_lon)
+
+            # Count vehicle towards totalNearbyVehicles ONLY if it is within max_radius_m (default 800.0 m)
+            if dist_m <= max_radius_m:
+                nearby_count += 1
             
             # Safety Rule: Location OFF Handling
             if not loc_enabled:
@@ -324,7 +330,7 @@ class CorridorAlgorithmEngine:
             "active": True,
             "predictedRoute": path_points,
             "corridorPolygon": corridor_polygon,
-            "totalNearbyVehicles": len(nearby_vehicles),
+            "totalNearbyVehicles": nearby_count,
             "obstructingVehiclesCount": obstructing_count,
             "instructedToMoveCount": instructed_count,
             "alerts": candidate_alerts,

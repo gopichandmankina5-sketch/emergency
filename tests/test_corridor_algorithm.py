@@ -87,5 +87,31 @@ class TestCorridorAlgorithm(unittest.TestCase):
         self.assertTrue(len(res["alerts"]) > 0)
         self.assertIn("Location OFF", res["alerts"][0].actionText)
 
+    def test_stale_faraway_vehicles_excluded_from_total_nearby_count(self):
+        """
+        Verification Test:
+        Vehicles hundreds of kilometers away (e.g., UNKNOWN-001 at ~481.5 km and UNKNOWN-002 at ~482 km)
+        must NOT increase totalNearbyVehicles, while actual nearby vehicles (e.g. V102 at 7.8 m) ARE counted.
+        """
+        vehicles = [
+            # V102: 7.8 m away
+            {"vehicleId": "V102", "latitude": 13.08007, "longitude": 80.26800, "speed": 30.0, "heading": 90.0, "locationEnabled": True},
+            # UNKNOWN-001: ~481.5 km away (lat 17.41234, lon 78.47567)
+            {"vehicleId": "UNKNOWN-001", "latitude": 17.41234, "longitude": 78.47567, "speed": 0.0, "heading": 0.0, "locationEnabled": True},
+            # UNKNOWN-002: ~482.0 km away (lat 17.42345, lon 78.48678)
+            {"vehicleId": "UNKNOWN-002", "latitude": 17.42345, "longitude": 78.48678, "speed": 0.0, "heading": 0.0, "locationEnabled": True},
+        ]
+
+        res = corridor_engine.evaluate_minimum_intervention_corridor(
+            self.ev_id, self.ev_lat, self.ev_lon, self.ev_speed, self.ev_heading,
+            self.dest_lat, self.dest_lon, vehicles
+        )
+
+        # totalNearbyVehicles must be exactly 1 (V102 only)
+        self.assertEqual(res["totalNearbyVehicles"], 1)
+
+        # Analytics rows must still evaluate all 3 candidates for infrastructure/analytics tracking
+        self.assertEqual(len(res["analyticsRows"]), 3)
+
 if __name__ == "__main__":
     unittest.main()
