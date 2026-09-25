@@ -1,0 +1,15 @@
+# Firebase Credentials & Secrets (NEVER COMMIT TO GIT)
+firebase-service-account.json
+backend/firebase-service-account.json
+google-services.json
+mobile/google-services.json
+*.pem
+*.key
+
+# Dependencies & Build artifacts
+node_modules/
+.expo/
+dist/
+__pycache__/
+*.pyc
+.env

@@ -1,0 +1,71 @@
+{
+  "scenarioName": "Emergency Response Hospital Route Demo",
+  "emergencyVehicle": {
+    "vehicleId": "AMB001",
+    "type": "AMBULANCE",
+    "latitude": 13.08000,
+    "longitude": 80.26800,
+    "speed": 45.0,
+    "heading": 90.0,
+    "destination": {
+      "latitude": 13.08000,
+      "longitude": 80.30000
+    }
+  },
+  "trafficVehicles": [
+    {
+      "vehicleId": "V101",
+      "latitude": 13.08300,
+      "longitude": 80.26800,
+      "speed": 35.0,
+      "heading": 90.0,
+      "locationEnabled": true,
+      "notes": "Far lateral offset (330m North) - NO ALERT"
+    },
+    {
+      "vehicleId": "V102",
+      "latitude": 13.08001,
+      "longitude": 80.26950,
+      "speed": 32.0,
+      "heading": 90.0,
+      "locationEnabled": true,
+      "notes": "Center lane blocking AMB001 predicted path - MOVE LEFT"
+    },
+    {
+      "vehicleId": "V103",
+      "latitude": 13.08004,
+      "longitude": 80.26980,
+      "speed": 30.0,
+      "heading": 90.0,
+      "locationEnabled": true,
+      "notes": "Left lane adjacent vehicle - STAY IN LANE"
+    },
+    {
+      "vehicleId": "V104",
+      "latitude": 13.07997,
+      "longitude": 80.27000,
+      "speed": 28.0,
+      "heading": 90.0,
+      "locationEnabled": true,
+      "notes": "Right shoulder overlap - MOVE RIGHT"
+    },
+    {
+      "vehicleId": "V105",
+      "latitude": 13.08000,
+      "longitude": 80.27100,
+      "speed": 45.0,
+      "heading": 270.0,
+      "locationEnabled": true,
+      "notes": "Opposite direction vehicle - NO ALERT"
+    },
+    {
+      "vehicleId": "V106",
+      "latitude": 13.08001,
+      "longitude": 80.27150,
+      "speed": 25.0,
+      "heading": 90.0,
+      "locationEnabled": true,
+      "notes": "Center lane 350m ahead - MOVE LEFT"
+    }
+  ]
+}

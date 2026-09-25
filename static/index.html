@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dynamic Emergency Corridor Allocation System - Prototype Dashboard</title>
+  
+  <!-- Leaflet OpenStreetMap CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <style>
+    /* Custom Map Marker Styling */
+    .ev-marker-pulse {
+      font-size: 32px;
+      filter: drop-shadow(0 0 12px #ff3b5c);
+      animation: pulse-red 1.5s infinite alternate;
+    }
+    @keyframes pulse-red {
+      0% { transform: scale(1); filter: drop-shadow(0 0 8px #ff3b5c); }
+      100% { transform: scale(1.15); filter: drop-shadow(0 0 20px #ff3b5c); }
+    }
+    .v-selected-badge {
+      font-size: 10px;
+      font-weight: bold;
+      background: #00e676;
+      color: #000;
+      padding: 2px 6px;
+      border-radius: 8px;
+      border: 1px solid #fff;
+      box-shadow: 0 0 8px #00e676;
+    }
+    .v-obstructing-badge {
+      font-size: 10px;
+      font-weight: bold;
+      background: #ffb703;
+      color: #000;
+      padding: 2px 6px;
+      border-radius: 8px;
+    }
+    .v-irrelevant-badge {
+      font-size: 9px;
+      background: rgba(148, 163, 184, 0.4);
+      color: #94a3b8;
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+    .v-unknown-badge {
+      font-size: 9px;
+      font-weight: bold;
+      background: #64748b;
+      color: #fff;
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+    .v-unknown-alert-badge {
+      font-size: 10px;
+      font-weight: bold;
+      background: #ff5722;
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #ff5722;
+      animation: pulse-orange 1.2s infinite alternate;
+    }
+    @keyframes pulse-orange {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.1); }
+    }
+    
+    .criteria-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      margin-top: 10px;
+    }
+    .criteria-table th, .criteria-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border-color);
+      text-align: left;
+    }
+    .pass-badge {
+      background: rgba(0, 230, 118, 0.2);
+      color: #00e676;
+      border: 1px solid #00e676;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="navbar">
+    <div class="brand">
+      <div class="brand-icon">🚨</div>
+      <div class="brand-title">
+        <h1>Dynamic Emergency Corridor System</h1>
+        <p>Predictive Minimum-Intervention Traffic Clearance Prototype</p>
+      </div>
+    </div>
+
+    <div class="mode-tabs">
+      <button class="tab-btn active" onclick="switchMode('emergency')">
+        <span>🚨</span> Emergency Mode
+      </button>
+      <button class="tab-btn" onclick="switchMode('driver')">
+        <span>🚗</span> Driver Mode
+      </button>
+      <button class="tab-btn" onclick="switchMode('infrastructure')">
+        <span>📡</span> Infrastructure Monitor
+      </button>
+      <button class="tab-btn" onclick="switchMode('simulation')">
+        <span>🎮</span> Simulation & Criteria
+      </button>
+    </div>
+  </header>
+
+  <!-- Main View Dashboard -->
+  <main class="main-container">
+    
+    <!-- OpenStreetMap Leaflet Canvas -->
+    <div class="map-card">
+      <div id="map"></div>
+    </div>
+
+    <!-- Side Control Panel -->
+    <aside class="panel">
+      
+      <!-- One-Click Full Demonstration Card -->
+      <div class="card" style="border: 2px solid var(--accent-cyan); background: linear-gradient(135deg, rgba(0,242,254,0.1), rgba(15,23,42,0.9));">
+        <button id="btn-run-full-demo" class="btn btn-primary" style="background: linear-gradient(135deg, #00f2fe, #0284c7); color:#000;" onclick="runFullDemonstration()">
+          ⚡ RUN FULL DEMONSTRATION (1 AMBULANCE + 10 VEHICLES)
+        </button>
+        <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:8px; text-align:center;">
+          Reproducible demonstration evaluating 10 vehicles across 3 lanes with minimal interventions.
+        </p>
+      </div>
+
+      <!-- Emergency Vehicle Mode Panel -->
+      <div id="panel-emergency" class="card">
+        <div class="card-title">
+          <span>🚨 Emergency Mission Control</span>
+          <span id="badge-status" style="font-size:0.75rem; color:var(--text-secondary);">STANDBY</span>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-bottom:14px;">
+          <select id="select-emergency-type" style="flex:1; padding:10px; background:rgba(15,23,42,0.8); color:white; border:1px solid var(--border-color); border-radius:10px; font-family:var(--font-main);">
+            <option value="AMBULANCE">🚑 AMBULANCE (AMB001)</option>
+            <option value="FIRE">🚒 FIRE ENGINE (FIRE01)</option>
+            <option value="POLICE">🚓 POLICE PATROL (POL01)</option>
+          </select>
+        </div>
+
+        <button id="btn-start-emergency" class="btn btn-primary" onclick="toggleEmergencyMission()">
+          ▶ START EMERGENCY MISSION
+        </button>
+
+        <div style="margin-top:20px;" class="card-title">
+          <span>📊 Real-Time Corridor Metrics</span>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-box">
+            <div id="metric-nearby" class="metric-val">0</div>
+            <div class="metric-lbl">Total Detected</div>
+          </div>
+          <div class="metric-box">
+            <div id="metric-obstructing" class="metric-val" style="color:var(--accent-amber);">0</div>
+            <div class="metric-lbl">Obstructing</div>
+          </div>
+          <div class="metric-box">
+            <div id="metric-move" class="metric-val" style="color:var(--accent-green);">0</div>
+            <div class="metric-lbl">Instructed Move</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Driver Mode Panel -->
+      <div id="panel-driver" class="card" style="display:none;">
+        <div class="card-title">
+          <span>🚗 Driver Telemetry & Alerts</span>
+          <span style="font-size:0.75rem; color:var(--accent-cyan);" id="lbl-driver-id">V102</span>
+        </div>
+
+        <div class="switch-group" style="margin-bottom:16px;">
+          <div>
+            <div style="font-weight:600; font-size:0.9rem;">GPS Location Access</div>
+            <div style="font-size:0.75rem; color:var(--text-secondary);" id="lbl-gps-status">Location ON (High Precision)</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="chk-location" checked onchange="toggleDriverLocation()">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- Alert Banner Card -->
+        <div id="driver-alert-card" class="alert-card alert-none">
+          <div class="alert-header">
+            <span>🚨</span>
+            <span id="alert-header-text">SYSTEM MONITORING</span>
+          </div>
+          <div id="alert-action-text" class="action-badge">
+            PATH CLEAR
+          </div>
+          <div class="alert-meta">
+            <span>Distance: <strong id="alert-dist">-- m</strong></span>
+            <span>ETA: <strong id="alert-eta">-- s</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Infrastructure Alert Monitor Panel -->
+      <div id="panel-infrastructure" class="card" style="display:none;">
+        <div class="card-title">
+          <span>📡 INFRASTRUCTURE ALERT MONITOR</span>
+        </div>
+        <div style="font-size:0.75rem; margin-bottom:10px; color:var(--text-secondary);">
+          Software-Based Infrastructure / Roadside Alert Layer
+        </div>
+
+        <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:12px; background:rgba(15,23,42,0.6); padding:8px 12px; border-radius:8px; border:1px solid var(--border-color);">
+          <div>Emergency Vehicle: <strong style="color:var(--accent-cyan);">AMB001</strong></div>
+          <div>Emergency Status: <span id="lbl-infra-ev-status" style="font-weight:bold; color:var(--text-secondary);">INACTIVE</span></div>
+        </div>
+
+        <div style="font-weight:600; font-size:0.85rem; margin-bottom:8px;">Unknown Road Users:</div>
+        <div id="infra-users-container" style="max-height:180px; overflow-y:auto; margin-bottom:14px; background:rgba(15,23,42,0.4); border-radius:8px; padding:6px; border:1px solid var(--border-color);">
+          <div style="font-size:0.75rem; color:var(--text-secondary); text-align:center; padding:10px;">No unknown road users observed yet.</div>
+        </div>
+
+        <div class="card-title" style="margin-top:14px; border-top:1px solid var(--border-color); padding-top:10px;">
+          <span>🕹️ Unknown Vehicle Controls</span>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:8px; font-size:0.75rem;">
+          <div>
+            <label style="display:block; margin-bottom:2px; color:var(--text-secondary);">Vehicle ID</label>
+            <input type="text" id="infra-input-id" value="UNKNOWN-001" style="width:100%; padding:5px; background:rgba(15,23,42,0.8); color:white; border:1px solid var(--border-color); border-radius:6px; font-size:0.75rem;">
+          </div>
+          <div>
+            <label style="display:block; margin-bottom:2px; color:var(--text-secondary);">Vehicle Type</label>
+            <select id="infra-input-type" style="width:100%; padding:5px; background:rgba(15,23,42,0.8); color:white; border:1px solid var(--border-color); border-radius:6px; font-size:0.75rem;">
+              <option value="CAR">CAR</option>
+              <option value="TRUCK">TRUCK</option>
+              <option value="BUS">BUS</option>
+              <option value="MOTORCYCLE">MOTORCYCLE</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; margin-bottom:2px; color:var(--text-secondary);">Latitude</label>
+            <input type="number" step="0.00001" id="infra-input-lat" value="13.08001" style="width:100%; padding:5px; background:rgba(15,23,42,0.8); color:white; border:1px solid var(--border-color); border-radius:6px; font-size:0.75rem;">
+          </div>
+          <div>
+            <label style="display:block; margin-bottom:2px; color:var(--text-secondary);">Longitude</label>
+            <input type="number" step="0.00001" id="infra-input-lon" value="80.26960" style="width:100%; padding:5px; background:rgba(15,23,42,0.8); color:white; border:1px solid var(--border-color); border-radius:6px; font-size:0.75rem;">
+          </div>
+          <div>
+            <label style="display:block; margin-bottom:2px; color:var(--text-secondary);">Speed (km/h)</label>
+            <input type="number" id="infra-input-speed" value="30" style="width:100%; padding:5px; background:rgba(15,23,42,0.8); color:white; border:1px solid var(--border-color); border-radius:6px; font-size:0.75rem;">
+          </div>
+          <div>
+            <label style="display:block; margin-bottom:2px; color:var(--text-secondary);">Heading (°)</label>
+            <input type="number" id="infra-input-heading" value="90" style="width:100%; padding:5px; background:rgba(15,23,42,0.8); color:white; border:1px solid var(--border-color); border-radius:6px; font-size:0.75rem;">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:6px;">
+          <button class="btn" style="background:#0284c7; padding:6px; font-size:0.75rem;" onclick="createUnknownVehicle()">[ CREATE UNKNOWN VEHICLE ]</button>
+          <button class="btn" style="background:var(--accent-cyan); color:#000; padding:6px; font-size:0.75rem;" onclick="updateUnknownVehiclePosition()">[ UPDATE POSITION ]</button>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+          <button class="btn" style="background:#dc2626; padding:6px; font-size:0.75rem;" onclick="deleteUnknownVehicle()">[ DELETE VEHICLE ]</button>
+          <button id="btn-toggle-infra-sim" class="btn" style="background:var(--accent-amber); color:#000; padding:6px; font-size:0.75rem;" onclick="toggleInfrastructureSimulation()">[ START SIMULATION ]</button>
+        </div>
+      </div>
+
+      <!-- Simulation Engine & Prototype Success Criteria Panel -->
+      <div id="panel-simulation" class="card" style="display:none;">
+        <div class="card-title">
+          <span>🏆 PROTOTYPE SUCCESS CRITERIA</span>
+          <span class="pass-badge" id="lbl-overall-pass">12 / 12 PASS</span>
+        </div>
+
+        <div style="max-height: 220px; overflow-y: auto;">
+          <table class="criteria-table">
+            <thead>
+              <tr><th>#</th><th>Criterion</th><th>Status</th></tr>
+            </thead>
+            <tbody id="tbl-success-criteria">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:16px;" class="card-title">
+          <span>⏱ Prototype Performance Measurement</span>
+        </div>
+        <div style="font-size:0.8rem; color:var(--text-secondary); line-height:1.5;">
+          <div>Calculation Time: <strong style="color:var(--accent-cyan);" id="perf-calc">0.42 ms</strong> (Target $\le$ 2.0s)</div>
+          <div>Alert Generation Time: <strong style="color:var(--accent-cyan);" id="perf-alert">0.15 ms</strong> (Target $\le$ 3.0s)</div>
+          <div>Total Decision Time: <strong style="color:var(--accent-green);" id="perf-total">0.57 ms</strong> (Target $\le$ 5.0s)</div>
+          <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px;">*Prototype targets for evaluation, not real-world safety guarantees.</div>
+        </div>
+      </div>
+
+      <!-- Excel Export Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>📈 Analytics & Course Export</span>
+        </div>
+        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px;">
+          Exports 13-column dataset (Distance, Speed, Heading, Obstruction Score, ETA, Clearance Time, Action, Safety Status) + Summary section to CSV for Excel.
+        </p>
+        <button class="btn btn-excel" onclick="exportAnalyticsCSV()">
+          📥 EXPORT 13-COLUMN CSV FOR EXCEL
+        </button>
+      </div>
+
+    </aside>
+  </main>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

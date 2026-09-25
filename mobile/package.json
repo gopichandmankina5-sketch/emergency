@@ -1,0 +1,80 @@
+{
+  "expo": {
+    "name": "Dynamic Emergency Corridor",
+    "slug": "emergency-corridor-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.emergencycorridor.mobile",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Dynamic Emergency Corridor Allocation System requires location access to track real-time position and calculate corridor obstructions.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Dynamic Emergency Corridor Allocation System requires continuous location updates to alert nearby drivers of approaching emergency vehicles."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f172a"
+      },
+      "package": "com.emergencycorridor.mobile",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "VIBRATE",
+        "INTERNET",
+        "POST_NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font",
+      "expo-status-bar",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0f172a"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "bc129eab-6f85-4dd0-95fb-e62e1395d147"
+      }
+    },
+    "owner": "gopi2530"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "axios": "^1.20.0",
+    "babel-preset-expo": "~57.0.0",
+    "expo": "^57.0.24",
+    "expo-asset": "~57.0.18",
+    "expo-dev-client": "~57.0.19",
+    "expo-device": "~57.0.2",
+    "expo-font": "~57.0.4",
+    "expo-haptics": "~57.0.3",
+    "expo-location": "~57.0.19",
+    "expo-notifications": "~57.0.20",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-maps": "1.27.2",
+    "react-native-webview": "13.16.1"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.4",
+    "typescript": "~6.0.3"
+  }
+}

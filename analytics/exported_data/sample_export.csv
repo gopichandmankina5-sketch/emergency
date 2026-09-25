@@ -1,0 +1,7 @@
+Vehicle ID,Emergency Vehicle ID,Distance (m),Speed (km/h),Obstruction Score,Selected for Action,Assigned Action,Clearance Time (s),Emergency ETA (s),Number of Interventions,Corridor Score
+V101,AMB001,420.5,35.0,0.0,Not Selected,NO_ALERT,0.0,33.6,0,100.0
+V102,AMB001,150.0,32.0,88.5,Selected,MOVE_LEFT,4.0,12.0,1,82.5
+V103,AMB001,180.0,30.0,15.0,Not Selected,STAY,0.0,14.4,0,82.5
+V104,AMB001,210.0,28.0,65.0,Selected,MOVE_RIGHT,4.0,16.8,1,82.5
+V105,AMB001,280.0,45.0,0.0,Not Selected,NO_ALERT,0.0,22.4,0,82.5
+V106,AMB001,310.0,25.0,72.0,Selected,MOVE_LEFT,4.0,24.8,1,82.5

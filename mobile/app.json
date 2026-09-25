@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "Dynamic Emergency Corridor",
+    "slug": "emergency-corridor-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.emergencycorridor.mobile",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Dynamic Emergency Corridor Allocation System requires location access to track real-time position and calculate corridor obstructions.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Dynamic Emergency Corridor Allocation System requires continuous location updates to alert nearby drivers of approaching emergency vehicles."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f172a"
+      },
+      "package": "com.emergencycorridor.mobile",
+      "googleServicesFile": "./google-services.json",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyA4kgRkx0pvBYN_kLJR3AajkP9BBv2dGsM"
+        }
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "VIBRATE",
+        "INTERNET",
+        "POST_NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font",
+      "expo-status-bar",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0f172a"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "bc129eab-6f85-4dd0-95fb-e62e1395d147"
+      }
+    },
+    "owner": "gopi2530"
+  }
+}
