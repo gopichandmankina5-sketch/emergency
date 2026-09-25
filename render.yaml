@@ -1,0 +1,26 @@
+# Render Blueprint Specification for Emergency Corridor Backend
+# Documentation: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: emergency-corridor-backend
+    env: python
+    region: singapore # Options: oregon, frankfurt, singapore, ohio
+    plan: free # Options: free, starter, standard
+    rootDir: backend
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn --bind 0.0.0.0:$PORT --workers 2 app.main:app"
+    healthCheckPath: /api/analytics/summary
+    envVars:
+      - key: MONGODB_URI
+        sync: false # Prompts user for MongoDB Atlas Connection URI in Render UI
+      - key: MONGODB_DATABASE
+        value: corridor_db
+      - key: DB_NAME
+        value: corridor_db
+      - key: FCM_SIMULATION
+        value: "true"
+      - key: GPS_STALE_TIMEOUT_SECONDS
+        value: "60.0"
+      - key: PYTHON_VERSION
+        value: 3.11.0
