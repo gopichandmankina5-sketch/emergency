@@ -7,6 +7,7 @@ import '../models/corridor.dart';
 import '../services/api_service.dart';
 import '../services/location_service.dart';
 import '../services/fcm_service.dart';
+import '../services/tts_service.dart';
 
 class DriverProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
@@ -215,6 +216,7 @@ class DriverProvider extends ChangeNotifier {
       await _apiService.acknowledgeAlert(_vehicleId);
       await _fcmService.cancelAllNotifications();
       _fcmService.resetNotificationState();
+      TtsService().stop();
       _activeAlert = null;
       notifyListeners();
     }
@@ -295,6 +297,7 @@ class DriverProvider extends ChangeNotifier {
         if (alert != null && alert.action.isNotEmpty && alert.action != 'NO_ALERT') {
           if (_fcmService.shouldNotify(alert.emergencyVehicleId, alert.vehicleId, alert.action)) {
             _fcmService.triggerHapticAlert(alert.action);
+            TtsService().speakAction(alert.action);
             await _fcmService.showLocalNotification(
               title: '🚨 EMERGENCY VEHICLE APPROACHING',
               body: alert.actionText,
@@ -311,6 +314,7 @@ class DriverProvider extends ChangeNotifier {
           if (hadActiveAlert) {
             _fcmService.resetNotificationState();
             await _fcmService.cancelAllNotifications();
+            TtsService().stop();
           }
         }
       } catch (e) {
