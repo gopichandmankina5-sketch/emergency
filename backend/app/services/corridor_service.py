@@ -104,7 +104,9 @@ class CorridorService:
             v_id = alert_dict["vehicleId"]
             current_action_str = str(alert_dict.get("action"))
             alert_dict["active"] = True
+            alert_dict["emergencyActive"] = True
             alert_dict["emergencyVehicleId"] = ev["vehicleId"]
+            alert_dict.setdefault("alertId", f"alert-{v_id}-{int(datetime.now(timezone.utc).timestamp())}")
 
             # Check if this vehicle is an unknown road user
             unknown_user = db.get_unknown_road_user(v_id)

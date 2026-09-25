@@ -16,6 +16,7 @@ const String kEmergencyChannelDesc =
 
 int _bgNotificationCounter = 0;
 int _fgNotificationCounter = 0;
+final Set<String> _processedMessageIds = <String>{};
 
 Future<bool> checkActiveEmergencyState(String vehicleId) async {
   debugPrint('[EmergencyNotification] Checking active emergency state');
@@ -83,7 +84,8 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     String action = message.data['action'] ?? '';
     String evId = message.data['emergencyVehicleId'] ?? 'AMB001';
     String vId = message.data['vehicleId'] ?? 'V102';
-    String messageId = message.messageId ?? '${DateTime.now().millisecondsSinceEpoch}';
+    String messageId = message.messageId ?? '';
+    String alertId = message.data['alertId'] ?? '';
     String timestamp = message.data['timestamp'] ?? DateTime.now().toIso8601String();
     String msgType = message.data['type'] ?? 'EMERGENCY_CORRIDOR_ALERT';
     String title = message.notification?.title ??
@@ -95,6 +97,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         'Please clear the emergency corridor';
 
     debugPrint('[EmergencyNotification] messageId = $messageId');
+    debugPrint('[EmergencyNotification] alertId = $alertId');
     debugPrint('[EmergencyNotification] timestamp = $timestamp');
     debugPrint('[EmergencyNotification] emergencyVehicleId = $evId');
     debugPrint('[EmergencyNotification] vehicleId = $vId');
@@ -102,13 +105,32 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     debugPrint('[EmergencyNotification] type = $msgType');
 
     if (action.isEmpty || action == 'NO_ALERT') {
-      debugPrint('[EmergencyNotification] Action is empty or NO_ALERT - suppressing notification');
+      debugPrint('[EmergencyNotification] SUPPRESSED - NO_ALERT');
       return;
+    }
+
+    String dedupKey = alertId.isNotEmpty ? alertId : messageId;
+    if (dedupKey.isNotEmpty) {
+      if (_processedMessageIds.contains(dedupKey)) {
+        debugPrint('[EmergencyNotification] SUPPRESSED - duplicate message');
+        return;
+      }
+      _processedMessageIds.add(dedupKey);
+      if (_processedMessageIds.length > 100) {
+        _processedMessageIds.remove(_processedMessageIds.first);
+      }
     }
 
     final bool isActive = await checkActiveEmergencyState(vId);
     if (!isActive) {
-      debugPrint('[EmergencyNotification] Suppressing notification: Active emergency = false');
+      debugPrint('[EmergencyNotification] SUPPRESSED - no active emergency');
+      return;
+    }
+
+    debugPrint('[EmergencyNotification] ACCEPTED - active emergency alert');
+
+    if (message.notification != null) {
+      debugPrint('[EmergencyNotification] Android native FCM displayed notification (skipping duplicate local notification)');
       return;
     }
 
@@ -300,11 +322,13 @@ class FcmService {
           String action = message.data['action'] ?? '';
           String evId = message.data['emergencyVehicleId'] ?? 'AMB001';
           String vId = message.data['vehicleId'] ?? 'V102';
-          String messageId = message.messageId ?? '${DateTime.now().millisecondsSinceEpoch}';
+          String messageId = message.messageId ?? '';
+          String alertId = message.data['alertId'] ?? '';
           String timestamp = message.data['timestamp'] ?? DateTime.now().toIso8601String();
           String msgType = message.data['type'] ?? 'EMERGENCY_CORRIDOR_ALERT';
 
           debugPrint('[EmergencyNotification] messageId = $messageId');
+          debugPrint('[EmergencyNotification] alertId = $alertId');
           debugPrint('[EmergencyNotification] timestamp = $timestamp');
           debugPrint('[EmergencyNotification] emergencyVehicleId = $evId');
           debugPrint('[EmergencyNotification] vehicleId = $vId');
@@ -312,15 +336,29 @@ class FcmService {
           debugPrint('[EmergencyNotification] type = $msgType');
 
           if (action.isEmpty || action == 'NO_ALERT') {
-            debugPrint('[EmergencyNotification] Action is empty or NO_ALERT - suppressing notification');
+            debugPrint('[EmergencyNotification] SUPPRESSED - NO_ALERT');
             return;
+          }
+
+          String dedupKey = alertId.isNotEmpty ? alertId : messageId;
+          if (dedupKey.isNotEmpty) {
+            if (_processedMessageIds.contains(dedupKey)) {
+              debugPrint('[EmergencyNotification] SUPPRESSED - duplicate message');
+              return;
+            }
+            _processedMessageIds.add(dedupKey);
+            if (_processedMessageIds.length > 100) {
+              _processedMessageIds.remove(_processedMessageIds.first);
+            }
           }
 
           final bool isActive = await checkActiveEmergencyState(vId);
           if (!isActive) {
-            debugPrint('[EmergencyNotification] Suppressing notification: Active emergency = false');
+            debugPrint('[EmergencyNotification] SUPPRESSED - no active emergency');
             return;
           }
+
+          debugPrint('[EmergencyNotification] ACCEPTED - active emergency alert');
 
           if (shouldNotify(evId, vId, action)) {
             triggerHapticAlert(action);
