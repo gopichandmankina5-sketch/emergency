@@ -156,7 +156,12 @@ class EmergencyProvider extends ChangeNotifier {
     await refreshNearbyVehicles();
 
     _telemetryTimer?.cancel();
-    _telemetryTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+    _telemetryTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+      if (!_isEmergencyActive) {
+        timer.cancel();
+        return;
+      }
+
       double updateLat = curLat;
       double updateLon = curLon;
       double updateSpeed = curSpeed;
@@ -164,6 +169,7 @@ class EmergencyProvider extends ChangeNotifier {
 
       if (_isLiveGpsMode) {
         final loc = await _locationService.getCurrentLocation();
+        if (!_isEmergencyActive) return;
         if (loc != null) {
           updateLat = loc.latitude;
           updateLon = loc.longitude;
@@ -184,6 +190,8 @@ class EmergencyProvider extends ChangeNotifier {
       curLat = updateLat;
       curLon = updateLon;
 
+      if (!_isEmergencyActive) return;
+
       final updatedCorridor = await _apiService.updateEmergencyLocation(
         vehicleId: _emergencyVehicleId,
         latitude: updateLat,
@@ -192,12 +200,16 @@ class EmergencyProvider extends ChangeNotifier {
         heading: updateHeading,
       );
 
+      if (!_isEmergencyActive) return;
+
       if (updatedCorridor != null) {
         _activeCorridor = updatedCorridor;
         _recordSuccess();
       } else {
         _recordFailure();
       }
+
+      if (!_isEmergencyActive) return;
 
       await refreshNearbyVehicles();
     });
@@ -207,6 +219,7 @@ class EmergencyProvider extends ChangeNotifier {
     _isEmergencyActive = false;
     _telemetryTimer?.cancel();
     _telemetryTimer = null;
+    _activeCorridor = null;
     await _apiService.stopEmergency(_emergencyVehicleId);
     notifyListeners();
   }
